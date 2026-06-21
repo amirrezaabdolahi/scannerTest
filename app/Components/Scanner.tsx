@@ -1,9 +1,9 @@
 "use client";
 
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { useEffect, useRef, useState } from "react";
 
-export default function TestScanner() {
+export default function Scanner() {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     const [barcode, setBarcode] = useState("");
@@ -16,7 +16,9 @@ export default function TestScanner() {
     useEffect(() => {
         const codeReader = new BrowserMultiFormatReader();
 
-        const start = async () => {
+        let controls: IScannerControls | undefined;
+
+        const startScanner = async () => {
             try {
                 addLog(`Secure Context: ${window.isSecureContext}`);
 
@@ -25,14 +27,14 @@ export default function TestScanner() {
 
                 addLog(`Cameras Found: ${devices.length}`);
 
-                devices.forEach((d) => {
-                    addLog(`Camera: ${d.label}`);
-                });
-
                 if (!devices.length) {
                     addLog("No camera found");
                     return;
                 }
+
+                devices.forEach((device) => {
+                    addLog(device.label || "Unknown Camera");
+                });
 
                 const camera =
                     devices.find((d) =>
@@ -45,7 +47,7 @@ export default function TestScanner() {
 
                 addLog(`Using: ${camera.label}`);
 
-                await codeReader.decodeFromVideoDevice(
+                controls = await codeReader.decodeFromVideoDevice(
                     camera.deviceId,
                     videoRef.current!,
                     (result) => {
@@ -69,16 +71,16 @@ export default function TestScanner() {
             }
         };
 
-        start();
+        startScanner();
 
         return () => {
-            codeReader.reset();
+            controls?.stop();
         };
     }, []);
 
     return (
         <div style={{ padding: 20 }}>
-            <h2>Scanner Test</h2>
+            <h2>ZXing Scanner Test</h2>
 
             <video
                 ref={videoRef}
@@ -89,6 +91,7 @@ export default function TestScanner() {
                     width: "100%",
                     maxWidth: 500,
                     borderRadius: 12,
+                    border: "1px solid #ddd",
                 }}
             />
 
@@ -99,17 +102,17 @@ export default function TestScanner() {
                     fontWeight: "bold",
                 }}
             >
-                Barcode:
-                {" "}
-                {barcode || "Waiting..."}
+                Barcode: {barcode || "Waiting..."}
             </div>
 
             <div
                 style={{
                     marginTop: 20,
-                    border: "1px solid #ccc",
-                    padding: 10,
+                    border: "1px solid #ddd",
+                    padding: 12,
                     whiteSpace: "pre-wrap",
+                    maxHeight: 300,
+                    overflowY: "auto",
                 }}
             >
                 {logs.map((log, index) => (
