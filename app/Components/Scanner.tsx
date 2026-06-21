@@ -1,77 +1,84 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { useEffect, useRef, useState } from "react";
 
-export default function TestCamera() {
-    const [logs, setLogs] = useState<string[]>([]);
-    const [counter, setCounter] = useState(0);
-
+export default function TestScanner() {
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    const [barcode, setBarcode] = useState("");
+    const [logs, setLogs] = useState<string[]>([]);
 
     const addLog = (message: string) => {
         setLogs((prev) => [...prev, message]);
     };
 
-    const openCamera = async () => {
-        setCounter((prev) => prev + 1);
+    useEffect(() => {
+        const codeReader = new BrowserMultiFormatReader();
 
-        addLog("Button clicked");
+        const start = async () => {
+            try {
+                addLog(`Secure Context: ${window.isSecureContext}`);
 
-        try {
-            addLog(`Secure Context: ${window.isSecureContext}`);
-            addLog(
-                `mediaDevices exists: ${!!navigator.mediaDevices}`
-            );
+                const devices =
+                    await BrowserMultiFormatReader.listVideoInputDevices();
 
-            if (!navigator.mediaDevices) {
-                addLog("navigator.mediaDevices is undefined");
-                return;
-            }
+                addLog(`Cameras Found: ${devices.length}`);
 
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                    },
+                devices.forEach((d) => {
+                    addLog(`Camera: ${d.label}`);
                 });
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                await videoRef.current.play();
-            }
+                if (!devices.length) {
+                    addLog("No camera found");
+                    return;
+                }
 
-            addLog("Camera permission granted");
-            addLog(`Tracks: ${stream.getTracks().length}`);
-        } catch (err) {
-            console.error(err);
+                const camera =
+                    devices.find((d) =>
+                        d.label.toLowerCase().includes("back")
+                    ) ||
+                    devices.find((d) =>
+                        d.label.toLowerCase().includes("rear")
+                    ) ||
+                    devices[devices.length - 1];
 
-            if (err instanceof Error) {
-                addLog(`Error: ${err.name}`);
-                addLog(`Message: ${err.message}`);
-            } else {
-                addLog(`Unknown Error: ${String(err)}`);
+                addLog(`Using: ${camera.label}`);
+
+                await codeReader.decodeFromVideoDevice(
+                    camera.deviceId,
+                    videoRef.current!,
+                    (result) => {
+                        if (result) {
+                            const value = result.getText();
+
+                            setBarcode(value);
+
+                            addLog(`Barcode: ${value}`);
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error(error);
+
+                if (error instanceof Error) {
+                    addLog(`${error.name}: ${error.message}`);
+                } else {
+                    addLog(String(error));
+                }
             }
-        }
-    };
+        };
+
+        start();
+
+        return () => {
+            codeReader.reset();
+        };
+    }, []);
 
     return (
         <div style={{ padding: 20 }}>
-            <button
-                onClick={openCamera}
-                style={{
-                    width: 200,
-                    height: 60,
-                    background: "blue",
-                    color: "white",
-                    fontSize: 18,
-                }}
-            >
-                Open Camera
-            </button>
-
-            <div style={{ marginTop: 20 }}>
-                Clicks: {counter}
-            </div>
+            <h2>Scanner Test</h2>
 
             <video
                 ref={videoRef}
@@ -81,11 +88,21 @@ export default function TestCamera() {
                 style={{
                     width: "100%",
                     maxWidth: 500,
-                    marginTop: 20,
-                    border: "1px solid #ccc",
                     borderRadius: 12,
                 }}
             />
+
+            <div
+                style={{
+                    marginTop: 20,
+                    fontSize: 20,
+                    fontWeight: "bold",
+                }}
+            >
+                Barcode:
+                {" "}
+                {barcode || "Waiting..."}
+            </div>
 
             <div
                 style={{
