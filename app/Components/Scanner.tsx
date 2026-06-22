@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 export default function Scanner() {
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const [barcode, setBarcode] = useState("");
+    const [barcode, setBarcode] = useState([]);
     const [logs, setLogs] = useState<string[]>([]);
 
     const addLog = (message: string) => {
@@ -38,10 +38,10 @@ export default function Scanner() {
 
                 const camera =
                     devices.find((d) =>
-                        d.label.toLowerCase().includes("back")
+                        d.label.toLowerCase().includes("back"),
                     ) ||
                     devices.find((d) =>
-                        d.label.toLowerCase().includes("rear")
+                        d.label.toLowerCase().includes("rear"),
                     ) ||
                     devices[devices.length - 1];
 
@@ -54,11 +54,11 @@ export default function Scanner() {
                         if (result) {
                             const value = result.getText();
 
-                            setBarcode(value);
+                            setBarcode((prev) => [...prev, value]);
 
                             addLog(`Barcode: ${value}`);
                         }
-                    }
+                    },
                 );
             } catch (error) {
                 console.error(error);
@@ -102,9 +102,23 @@ export default function Scanner() {
                     fontWeight: "bold",
                 }}
             >
-                Barcode: {barcode || "Waiting..."}
+                Barcode: {barcode[barcode.length - 1] || "Waiting..."}
             </div>
 
+            <div
+                style={{
+                    marginTop: 20,
+                    border: "1px solid #ddd",
+                    padding: 12,
+                    whiteSpace: "pre-wrap",
+                    maxHeight: 300,
+                    overflowY: "auto",
+                }}
+            >
+                {barcode.map((log, index) => (
+                    <div key={index}>{log}</div>
+                ))}
+            </div>
             <div
                 style={{
                     marginTop: 20,
